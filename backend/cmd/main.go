@@ -10,11 +10,11 @@ import (
 	"github.com/danbernal999/kiradoc-backend/pkg/middleware"
 	"github.com/danbernal999/kiradoc-backend/pkg/repository"
 	"github.com/danbernal999/kiradoc-backend/pkg/services"
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 	}
 	defer db.Close()
 	repo := repository.NewRepository(db)
-	
+
 	if err := repo.SeedTemplatesIfEmpty(); err != nil {
 		log.Printf("Warning: Failed to seed templates: %v", err)
 	}
@@ -82,7 +82,7 @@ func main() {
 	apiRoutes.HandleFunc("/documents/{id}/comments", h.GetDocumentCommentsHandler).Methods("GET", "OPTIONS")
 	apiRoutes.HandleFunc("/documents/{id}/comments", h.CreateDocumentCommentHandler).Methods("POST", "OPTIONS")
 	apiRoutes.HandleFunc("/documents/{id}/versions", h.GetDocumentVersionsHandler).Methods("GET", "OPTIONS")
-	
+
 	// Generic document routes - less specific paths last
 	apiRoutes.HandleFunc("/documents", h.ListDocumentsHandler).Methods("GET", "OPTIONS")
 	apiRoutes.HandleFunc("/documents", h.SaveDocumentHandler).Methods("POST", "OPTIONS")

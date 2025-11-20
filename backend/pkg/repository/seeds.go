@@ -14,7 +14,7 @@ func (r *Repository) SeedTemplates() error {
 			name:        "Non-Disclosure Agreement",
 			description: "Protect confidential information with a professional NDA",
 			typeStr:     "nda",
-			content:     `NON-DISCLOSURE AGREEMENT
+			content: `NON-DISCLOSURE AGREEMENT
 
 This Non-Disclosure Agreement ("Agreement") is entered into as of {{execution_date}}, between {{disclosing_party}}, a {{disclosing_entity_type}} ("Disclosing Party"), and {{receiving_party}}, a {{receiving_entity_type}} ("Receiving Party").
 
@@ -62,7 +62,7 @@ Date: _______________________`,
 			name:        "Employment Contract",
 			description: "Create a professional employment agreement",
 			typeStr:     "employment",
-			content:     `EMPLOYMENT AGREEMENT
+			content: `EMPLOYMENT AGREEMENT
 
 This Employment Agreement ("Agreement") is entered into as of {{start_date}}, between {{company_name}}, a {{entity_type}} ("Employer"), and {{employee_name}} ("Employee").
 
@@ -117,7 +117,7 @@ Date: _______________________`,
 			name:        "Lease Agreement",
 			description: "Professional property rental agreement",
 			typeStr:     "rental",
-			content:     `LEASE AGREEMENT
+			content: `LEASE AGREEMENT
 
 This Lease Agreement ("Lease") is made and entered into as of {{lease_date}}, between {{landlord_name}}, a {{landlord_type}} ("Landlord"), and {{tenant_name}}, a {{tenant_type}} ("Tenant").
 
@@ -181,7 +181,7 @@ Date: _______________________`,
 			name:        "Freelance Agreement",
 			description: "Independent contractor service agreement",
 			typeStr:     "freelance",
-			content:     `INDEPENDENT CONTRACTOR AGREEMENT
+			content: `INDEPENDENT CONTRACTOR AGREEMENT
 
 This Independent Contractor Agreement ("Agreement") is made and entered into as of {{agreement_date}}, between {{client_name}}, a {{client_type}} ("Client"), and {{contractor_name}}, a {{contractor_type}} ("Contractor").
 

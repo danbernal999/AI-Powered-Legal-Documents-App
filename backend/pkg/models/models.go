@@ -12,28 +12,28 @@ type User struct {
 }
 
 type Template struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"content"`
+	ID          string                   `json:"id"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Type        string                   `json:"type"`
+	Content     string                   `json:"content"`
 	Variables   []map[string]interface{} `json:"variables"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	CreatedAt   time.Time                `json:"created_at"`
+	UpdatedAt   time.Time                `json:"updated_at"`
 }
 
 type Document struct {
-	ID          string                 `json:"id"`
-	UserID      string                 `json:"user_id"`
-	TemplateID  string                 `json:"template_id"`
-	Title       string                 `json:"title"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"content"`
-	Variables   map[string]interface{} `json:"variables"`
-	Status      string                 `json:"status"`
-	Version     int                    `json:"version"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID         string                 `json:"id"`
+	UserID     string                 `json:"user_id"`
+	TemplateID string                 `json:"template_id"`
+	Title      string                 `json:"title"`
+	Type       string                 `json:"type"`
+	Content    string                 `json:"content"`
+	Variables  map[string]interface{} `json:"variables"`
+	Status     string                 `json:"status"`
+	Version    int                    `json:"version"`
+	CreatedAt  time.Time              `json:"created_at"`
+	UpdatedAt  time.Time              `json:"updated_at"`
 }
 
 type GenerateDocumentRequest struct {
@@ -92,14 +92,14 @@ type DocumentShare struct {
 }
 
 type ShareLink struct {
-	ID             string    `json:"id"`
-	DocumentID     string    `json:"document_id"`
-	CreatedByUser  string    `json:"created_by_user_id"`
-	Token          string    `json:"token"`
-	Permission     string    `json:"permission"`
-	ExpiresAt      *time.Time `json:"expires_at"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID            string     `json:"id"`
+	DocumentID    string     `json:"document_id"`
+	CreatedByUser string     `json:"created_by_user_id"`
+	Token         string     `json:"token"`
+	Permission    string     `json:"permission"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 type DocumentComment struct {
@@ -129,7 +129,7 @@ type ShareDocumentRequest struct {
 }
 
 type CreateShareLinkRequest struct {
-	Permission string `json:"permission"`
+	Permission string     `json:"permission"`
 	ExpiresAt  *time.Time `json:"expires_at"`
 }
 

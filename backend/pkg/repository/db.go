@@ -23,7 +23,6 @@ func NewDB(dsn string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-
 type Repository struct {
 	db *DB
 }
@@ -312,14 +311,14 @@ func (r *Repository) DeleteDocumentShare(id string) error {
 }
 
 type ShareLink struct {
-	ID             string
-	DocumentID     string
+	ID              string
+	DocumentID      string
 	CreatedByUserID string
-	Token          string
-	Permission     string
-	ExpiresAt      interface{}
-	CreatedAt      interface{}
-	UpdatedAt      interface{}
+	Token           string
+	Permission      string
+	ExpiresAt       interface{}
+	CreatedAt       interface{}
+	UpdatedAt       interface{}
 }
 
 func (r *Repository) CreateShareLink(link *ShareLink) error {
@@ -368,12 +367,12 @@ func (r *Repository) DeleteShareLink(id string) error {
 }
 
 type DocumentComment struct {
-	ID        string
+	ID         string
 	DocumentID string
-	UserID    string
-	Content   string
-	CreatedAt interface{}
-	UpdatedAt interface{}
+	UserID     string
+	Content    string
+	CreatedAt  interface{}
+	UpdatedAt  interface{}
 }
 
 func (r *Repository) CreateDocumentComment(comment *DocumentComment) error {
@@ -454,4 +453,3 @@ func (r *Repository) GetDocumentVersions(documentID string) ([]*DocumentVersion,
 	}
 	return versions, nil
 }
-

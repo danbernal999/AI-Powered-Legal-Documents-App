@@ -375,7 +375,7 @@ func (h *Handlers) ShareDocumentHandler(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("Creating document share: id=%s, docID=%s, sharedByUserID=%s, sharedWithUserID=%s, permission=%s",
 		share.ID, share.DocumentID, share.SharedByUserID, share.SharedWithUserID, share.Permission)
-	
+
 	if err := h.services.CreateDocumentShare(share); err != nil {
 		log.Printf("Failed to create document share: %v", err)
 		http.Error(w, "Failed to share document", http.StatusInternalServerError)
