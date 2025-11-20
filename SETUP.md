@@ -1,240 +1,79 @@
-# KiraDoc Setup Guide
+﻿# KiraDoc — Setup & Migrations
 
-## Quick Start with Docker Compose
+Este documento describe cómo preparar el proyecto localmente, ejecutar la base de datos y aplicar migraciones.
 
-The fastest way to get started is using Docker Compose:
+**Requisitos previos**
+- Docker & Docker Compose (o Docker Desktop)
+- Go 1.21 (para construir el backend localmente)
+- Node.js (para el frontend)
+- Opcional: `migrate` CLI (https://github.com/golang-migrate/migrate) si prefieres ejecutarlo localmente
 
-```bash
-docker-compose up
+**Resumen rápido (Makefile disponible)**
+- `make up` — levanta la pila (Postgres + backend)
+- `make db-migrate` — aplica las migraciones (usa binario local `migrate` si está instalado, si no usa la imagen Docker de `migrate`)
+- `make db-down` — revierte las migraciones
+- `make down` — baja la pila Docker
+
+1) Copia el archivo de ejemplo de variables de entorno
+
+```powershell
+cp .env.example .env
+# Edita .env si necesitas cambiar valores locales
 ```
 
-This will:
-1. Start PostgreSQL database on port 5432
-2. Start the backend API on port 8080
-3. Automatically create database schema and seed templates
+2) Levantar la base y servicios (desarrollo)
 
-Then start the frontend in a new terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
+```powershell
+# Levanta servicios (el backend aplicará migraciones al arrancar)
+make up
 ```
 
-Frontend will be available at http://localhost:3000
+3) Aplicar migraciones manualmente (opcional)
 
----
+```powershell
+# Usando Makefile (prefiere binario local o Docker)
+make db-migrate
 
-## Manual Setup
-
-### Prerequisites
-- Go 1.21+ (Install from https://golang.org/dl/)
-- Node.js 18+ (Install from https://nodejs.org/)
-- PostgreSQL 15+ (Install from https://www.postgresql.org/download/)
-
-### Step 1: Setup PostgreSQL
-
-```bash
-# Create database
-createdb kiradoc
-
-# Or use psql:
-psql -U postgres
-CREATE DATABASE kiradoc;
-```
-
-### Step 2: Backend Setup
-
-```bash
+# O con el binario migrate si lo tienes instalado:
 cd backend
-
-# Download dependencies
-go mod download
-
-# Create .env file with your PostgreSQL connection
-echo "DATABASE_URL=postgres://postgres:password@localhost:5432/kiradoc" > ../.env
-echo "PORT=8080" >> ../.env
-echo "JWT_SECRET=your-super-secret-key" >> ../.env
-echo "OPENAI_API_KEY=your-openai-key" >> ../.env
-
-# Run the backend
-go run cmd/main.go
+migrate -path ./migrations -database "$env:DATABASE_URL" up
 ```
 
-The backend will:
-1. Migrate the database schema
-2. Seed legal templates
-3. Start the API server on port 8080
+4) Parar la pila
 
-### Step 3: Frontend Setup
-
-In a new terminal:
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
+```powershell
+make down
 ```
 
-Frontend will be available at http://localhost:3000
+**Detalles importantes**
+- Las migraciones están en `backend/migrations/` (archivos SQL `1_init.up.sql` y `1_init.down.sql`).
+- El contenedor del backend copia `/migrations` dentro de la imagen y ejecuta `migrate` al iniciar (útil en dev). En producción, ejecuta migraciones como paso explícito en tu CI/CD — no confíes en migraciones automáticas sin pruebas.
+- El antiguo método que hacía migraciones desde código fue removido: ahora usamos `golang-migrate` y archivos SQL versionados.
 
----
+**Uso en Windows/WSL**
+- Ejecuta los comandos desde WSL para mejor compatibilidad con Make y mount de volúmenes Docker.
 
-## First Time Usage
+**Recomendaciones de seguridad**
+- No expongas secretos en logs. El backend ya enmascara las credenciales del DSN en los logs.
+- Mantén `.env` fuera del control de versiones (usa `.env.example` en repo).
 
-1. Open http://localhost:3000 in your browser
-2. Click "Sign Up" to create an account
-3. After login, click "Create Document"
-4. Select "NDA" template as your first document
-5. Fill in the required fields:
-   - Disclosing Party: "Acme Corp"
-   - Receiving Party: "Tech Startup Inc"
-   - Confidential Information: "AI technology and trade secrets"
-   - Duration: "3"
-   - Jurisdiction: "California"
-6. Click "Generate Document"
-7. Preview the generated NDA
-8. Click "Save Document"
+**Comandos útiles**
+- Ver la URL que usa la app (dentro del contenedor backend):
 
----
-
-## Testing the API with cURL
-
-### Register
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123",
-    "name": "John Doe"
-  }'
+```powershell
+docker compose exec backend env | Select-String DATABASE_URL
 ```
 
-### Login
+- Listar bases en Postgres (conectando a la base `kiradoc`):
 
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
+```powershell
+docker compose exec postgres psql -U user -d kiradoc -c "\l"
 ```
 
-### Get Templates
+- Ejecutar migraciones con Docker (si no tienes `migrate` instalado):
 
-```bash
-curl http://localhost:8080/api/v1/templates \
-  -H "Authorization: Bearer <TOKEN_FROM_LOGIN>"
+```powershell
+docker run --rm -v ${PWD}/backend/migrations:/migrations -e DATABASE_URL="$env:DATABASE_URL" migrate/migrate:v4.15.2 -path=/migrations -database "$env:DATABASE_URL" up
 ```
 
-### Generate Document
-
-```bash
-curl -X POST http://localhost:8080/api/v1/generate \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
-  -d '{
-    "template_id": "nda",
-    "title": "My First NDA",
-    "variables": {
-      "disclosing_party": "Acme Corp",
-      "receiving_party": "Tech Startup",
-      "execution_date": "2024-11-17",
-      "disclosing_entity_type": "Corporation",
-      "receiving_entity_type": "LLC",
-      "confidential_info": "AI Technology",
-      "duration": "3",
-      "jurisdiction": "California"
-    }
-  }'
-```
-
----
-
-## Troubleshooting
-
-### PostgreSQL Connection Error
-- Make sure PostgreSQL is running
-- Verify the DATABASE_URL is correct
-- Check that the database `kiradoc` exists
-
-### Port Already in Use
-- Backend: Change PORT in .env (default 8080)
-- Frontend: npm run dev will prompt to use a different port
-
-### Modules Not Found (Go)
-- Run `go mod download` in the backend directory
-- Delete go.sum and run `go mod tidy`
-
-### Node Modules Issues
-- Delete `node_modules` and `package-lock.json`
-- Run `npm install` again
-
----
-
-## Environment Variables
-
-### Backend (.env)
-```
-DATABASE_URL=postgres://user:password@localhost:5432/kiradoc
-PORT=8080
-JWT_SECRET=your-secret-key-here
-OPENAI_API_KEY=sk-...  (optional for OpenAI)
-GROQ_API_KEY=...        (optional for Groq)
-MCP_ENABLED=true
-```
-
-### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
-```
-
----
-
-## Production Deployment
-
-### Backend on Heroku
-
-```bash
-cd backend
-heroku create kiradoc-backend
-git push heroku main
-```
-
-### Frontend on Vercel
-
-```bash
-cd frontend
-vercel
-```
-
----
-
-## Next Steps
-
-After the MVP is working:
-1. Add more templates (services agreement, partnership agreement, etc.)
-2. Implement document analysis for legal risk detection
-3. Add PDF export with formatting
-4. Create Flutter mobile app
-5. Implement electronic signatures
-6. Add collaboration features
-
----
-
-## Support
-
-For issues:
-1. Check the console logs
-2. Review the README.md for detailed documentation
-3. Check backend logs: `tail -f backend/logs.txt`
-4. Check browser console for frontend errors
-
-Happy document generation! 🚀
+¿Quieres que añada un job de CI (GitHub Actions) que verifique y aplique/valide migraciones en un entorno de pruebas? Si es así, lo puedo crear y probar con un contenedor de Postgres en el workflow.

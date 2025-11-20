@@ -23,49 +23,6 @@ func NewDB(dsn string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-func (d *DB) Migrate() error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS users (
-		id VARCHAR(36) PRIMARY KEY,
-		email VARCHAR(255) UNIQUE NOT NULL,
-		password VARCHAR(255) NOT NULL,
-		name VARCHAR(255),
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE TABLE IF NOT EXISTS templates (
-		id VARCHAR(36) PRIMARY KEY,
-		name VARCHAR(255) NOT NULL,
-		description TEXT,
-		type VARCHAR(50) NOT NULL,
-		content TEXT NOT NULL,
-		variables TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE TABLE IF NOT EXISTS documents (
-		id VARCHAR(36) PRIMARY KEY,
-		user_id VARCHAR(36) NOT NULL REFERENCES users(id),
-		template_id VARCHAR(36) REFERENCES templates(id),
-		title VARCHAR(255) NOT NULL,
-		type VARCHAR(50) NOT NULL,
-		content TEXT NOT NULL,
-		variables TEXT,
-		status VARCHAR(50),
-		version INTEGER DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
-	CREATE INDEX IF NOT EXISTS idx_documents_template_id ON documents(template_id);
-	`
-
-	_, err := d.Exec(schema)
-	return err
-}
 
 type Repository struct {
 	db *DB
@@ -151,6 +108,12 @@ type Template struct {
 	UpdatedAt   interface{}
 }
 
+func (r *Repository) CreateTemplate(t *Template) error {
+	query := `INSERT INTO templates (id, name, description, type, content, variables) VALUES ($1, $2, $3, $4, $5, $6)`
+	_, err := r.db.Exec(query, t.ID, t.Name, t.Description, t.Type, t.Content, t.Variables)
+	return err
+}
+
 func (r *Repository) CreateDocument(doc *Document) error {
 	query := `
 	INSERT INTO documents (id, user_id, template_id, title, type, content, variables, status, version)
@@ -219,3 +182,276 @@ type Document struct {
 	CreatedAt  interface{} `json:"created_at"`
 	UpdatedAt  interface{} `json:"updated_at"`
 }
+
+type Signature struct {
+	ID            string
+	DocumentID    string
+	SignerName    string
+	SignerEmail   string
+	SignatureData []byte
+	Timestamp     string
+	SignedAt      interface{}
+	CreatedAt     interface{}
+	UpdatedAt     interface{}
+}
+
+func (r *Repository) CreateSignature(sig *Signature) error {
+	query := `
+	INSERT INTO signatures (id, document_id, signer_name, signer_email, signature_data, timestamp, signed_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+	_, err := r.db.Exec(query, sig.ID, sig.DocumentID, sig.SignerName, sig.SignerEmail, sig.SignatureData, sig.Timestamp, sig.SignedAt)
+	return err
+}
+
+func (r *Repository) GetSignaturesByDocumentID(documentID string) ([]*Signature, error) {
+	query := `SELECT id, document_id, signer_name, signer_email, signature_data, timestamp, signed_at, created_at, updated_at FROM signatures WHERE document_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var signatures []*Signature
+	for rows.Next() {
+		var sig Signature
+		err := rows.Scan(&sig.ID, &sig.DocumentID, &sig.SignerName, &sig.SignerEmail, &sig.SignatureData, &sig.Timestamp, &sig.SignedAt, &sig.CreatedAt, &sig.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		signatures = append(signatures, &sig)
+	}
+	return signatures, nil
+}
+
+func (r *Repository) GetSignatureByID(id string) (*Signature, error) {
+	var sig Signature
+	query := `SELECT id, document_id, signer_name, signer_email, signature_data, timestamp, signed_at, created_at, updated_at FROM signatures WHERE id = $1`
+	err := r.db.QueryRow(query, id).Scan(&sig.ID, &sig.DocumentID, &sig.SignerName, &sig.SignerEmail, &sig.SignatureData, &sig.Timestamp, &sig.SignedAt, &sig.CreatedAt, &sig.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &sig, nil
+}
+
+func (r *Repository) DeleteSignature(id string) error {
+	query := `DELETE FROM signatures WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+type DocumentShare struct {
+	ID               string      `json:"id"`
+	DocumentID       string      `json:"document_id"`
+	SharedByUserID   string      `json:"shared_by_user_id"`
+	SharedWithUserID string      `json:"shared_with_user_id"`
+	Permission       string      `json:"permission"`
+	CreatedAt        interface{} `json:"created_at"`
+	UpdatedAt        interface{} `json:"updated_at"`
+}
+
+func (r *Repository) CreateDocumentShare(share *DocumentShare) error {
+	query := `
+	INSERT INTO document_shares (id, document_id, shared_by_user_id, shared_with_user_id, permission)
+	VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := r.db.Exec(query, share.ID, share.DocumentID, share.SharedByUserID, share.SharedWithUserID, share.Permission)
+	return err
+}
+
+func (r *Repository) GetDocumentShares(documentID string) ([]*DocumentShare, error) {
+	query := `SELECT id, document_id, shared_by_user_id, shared_with_user_id, permission, created_at, updated_at FROM document_shares WHERE document_id = $1`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []*DocumentShare
+	for rows.Next() {
+		var share DocumentShare
+		err := rows.Scan(&share.ID, &share.DocumentID, &share.SharedByUserID, &share.SharedWithUserID, &share.Permission, &share.CreatedAt, &share.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		shares = append(shares, &share)
+	}
+	return shares, nil
+}
+
+func (r *Repository) GetDocumentsSharedWithUser(userID string) ([]*DocumentShare, error) {
+	query := `SELECT id, document_id, shared_by_user_id, shared_with_user_id, permission, created_at, updated_at FROM document_shares WHERE shared_with_user_id = $1`
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []*DocumentShare
+	for rows.Next() {
+		var share DocumentShare
+		err := rows.Scan(&share.ID, &share.DocumentID, &share.SharedByUserID, &share.SharedWithUserID, &share.Permission, &share.CreatedAt, &share.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		shares = append(shares, &share)
+	}
+	return shares, nil
+}
+
+func (r *Repository) UpdateDocumentShare(share *DocumentShare) error {
+	query := `UPDATE document_shares SET permission = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	_, err := r.db.Exec(query, share.Permission, share.ID)
+	return err
+}
+
+func (r *Repository) DeleteDocumentShare(id string) error {
+	query := `DELETE FROM document_shares WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+type ShareLink struct {
+	ID             string
+	DocumentID     string
+	CreatedByUserID string
+	Token          string
+	Permission     string
+	ExpiresAt      interface{}
+	CreatedAt      interface{}
+	UpdatedAt      interface{}
+}
+
+func (r *Repository) CreateShareLink(link *ShareLink) error {
+	query := `
+	INSERT INTO share_links (id, document_id, created_by_user_id, token, permission, expires_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := r.db.Exec(query, link.ID, link.DocumentID, link.CreatedByUserID, link.Token, link.Permission, link.ExpiresAt)
+	return err
+}
+
+func (r *Repository) GetShareLinkByToken(token string) (*ShareLink, error) {
+	var link ShareLink
+	query := `SELECT id, document_id, created_by_user_id, token, permission, expires_at, created_at, updated_at FROM share_links WHERE token = $1`
+	err := r.db.QueryRow(query, token).Scan(&link.ID, &link.DocumentID, &link.CreatedByUserID, &link.Token, &link.Permission, &link.ExpiresAt, &link.CreatedAt, &link.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &link, nil
+}
+
+func (r *Repository) GetShareLinks(documentID string) ([]*ShareLink, error) {
+	query := `SELECT id, document_id, created_by_user_id, token, permission, expires_at, created_at, updated_at FROM share_links WHERE document_id = $1`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var links []*ShareLink
+	for rows.Next() {
+		var link ShareLink
+		err := rows.Scan(&link.ID, &link.DocumentID, &link.CreatedByUserID, &link.Token, &link.Permission, &link.ExpiresAt, &link.CreatedAt, &link.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, &link)
+	}
+	return links, nil
+}
+
+func (r *Repository) DeleteShareLink(id string) error {
+	query := `DELETE FROM share_links WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+type DocumentComment struct {
+	ID        string
+	DocumentID string
+	UserID    string
+	Content   string
+	CreatedAt interface{}
+	UpdatedAt interface{}
+}
+
+func (r *Repository) CreateDocumentComment(comment *DocumentComment) error {
+	query := `
+	INSERT INTO document_comments (id, document_id, user_id, content)
+	VALUES ($1, $2, $3, $4)
+	`
+	_, err := r.db.Exec(query, comment.ID, comment.DocumentID, comment.UserID, comment.Content)
+	return err
+}
+
+func (r *Repository) GetDocumentComments(documentID string) ([]*DocumentComment, error) {
+	query := `
+	SELECT dc.id, dc.document_id, dc.user_id, dc.content, dc.created_at, dc.updated_at
+	FROM document_comments dc
+	WHERE dc.document_id = $1
+	ORDER BY dc.created_at DESC
+	`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*DocumentComment
+	for rows.Next() {
+		var comment DocumentComment
+		err := rows.Scan(&comment.ID, &comment.DocumentID, &comment.UserID, &comment.Content, &comment.CreatedAt, &comment.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, &comment)
+	}
+	return comments, nil
+}
+
+func (r *Repository) DeleteDocumentComment(id string) error {
+	query := `DELETE FROM document_comments WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+type DocumentVersion struct {
+	ID              string
+	DocumentID      string
+	UserID          string
+	PreviousContent string
+	CurrentContent  string
+	ChangeSummary   string
+	CreatedAt       interface{}
+}
+
+func (r *Repository) CreateDocumentVersion(version *DocumentVersion) error {
+	query := `
+	INSERT INTO document_versions (id, document_id, user_id, previous_content, current_content, change_summary)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := r.db.Exec(query, version.ID, version.DocumentID, version.UserID, version.PreviousContent, version.CurrentContent, version.ChangeSummary)
+	return err
+}
+
+func (r *Repository) GetDocumentVersions(documentID string) ([]*DocumentVersion, error) {
+	query := `SELECT id, document_id, user_id, previous_content, current_content, change_summary, created_at FROM document_versions WHERE document_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []*DocumentVersion
+	for rows.Next() {
+		var version DocumentVersion
+		err := rows.Scan(&version.ID, &version.DocumentID, &version.UserID, &version.PreviousContent, &version.CurrentContent, &version.ChangeSummary, &version.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		versions = append(versions, &version)
+	}
+	return versions, nil
+}
+

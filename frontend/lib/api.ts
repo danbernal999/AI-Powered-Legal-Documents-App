@@ -36,6 +36,7 @@ export const templateAPI = {
 
 export const documentAPI = {
   list: () => apiClient.get('/documents'),
+  listSharedWithMe: () => apiClient.get('/documents/shared-with-me'),
   create: (data: any) => apiClient.post('/documents', data),
   getById: (id: string) => apiClient.get(`/documents/${id}`),
   update: (id: string, data: any) => apiClient.put(`/documents/${id}`, data),
@@ -49,6 +50,47 @@ export const generateAPI = {
       variables,
       title,
     }),
+}
+
+export const signatureAPI = {
+  sign: (documentId: string, signerName: string, signerEmail: string, signatureData: string) =>
+    apiClient.post(`/documents/${documentId}/sign`, {
+      signer_name: signerName,
+      signer_email: signerEmail,
+      signature_data: signatureData,
+    }),
+
+  getSignatures: (documentId: string) =>
+    apiClient.get(`/documents/${documentId}/signatures`),
+
+  deleteSignature: (signatureId: string) =>
+    apiClient.delete(`/signatures/${signatureId}`),
+}
+
+export const collaborationAPI = {
+  shareDocument: (documentId: string, sharedWithEmail: string, permission: string) =>
+    apiClient.post(`/documents/${documentId}/share`, {
+      shared_with_email: sharedWithEmail,
+      permission,
+    }),
+
+  getDocumentShares: (documentId: string) =>
+    apiClient.get(`/documents/${documentId}/shares`),
+
+  deleteShare: (shareId: string) =>
+    apiClient.delete(`/shares/${shareId}`),
+
+  getDocumentComments: (documentId: string) =>
+    apiClient.get(`/documents/${documentId}/comments`),
+
+  createComment: (documentId: string, content: string) =>
+    apiClient.post(`/documents/${documentId}/comments`, { content }),
+
+  deleteComment: (commentId: string) =>
+    apiClient.delete(`/comments/${commentId}`),
+
+  getDocumentVersions: (documentId: string) =>
+    apiClient.get(`/documents/${documentId}/versions`),
 }
 
 export default apiClient

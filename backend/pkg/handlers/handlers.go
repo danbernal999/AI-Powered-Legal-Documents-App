@@ -240,6 +240,253 @@ func (h *Handlers) DeleteDocumentHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handlers) CreateTemplateHandler(w http.ResponseWriter, r *http.Request) {
+	var t models.Template
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// convert to repo template
+	varsBytes, _ := json.Marshal(t.Variables)
+	repoT := &repository.Template{
+		ID:          uuid.New().String(),
+		Name:        t.Name,
+		Description: t.Description,
+		Type:        t.Type,
+		Content:     t.Content,
+		Variables:   string(varsBytes),
+	}
+
+	if err := h.services.CreateTemplate(repoT); err != nil {
+		http.Error(w, "Failed to create template", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(t)
+}
+
+func (h *Handlers) SignDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	var req models.SignDocumentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	sig := &repository.Signature{
+		ID:            uuid.New().String(),
+		DocumentID:    docID,
+		SignerName:    req.SignerName,
+		SignerEmail:   req.SignerEmail,
+		SignatureData: []byte(req.SignatureData),
+		Timestamp:     time.Now().Format(time.RFC3339),
+	}
+
+	if err := h.services.CreateSignature(sig); err != nil {
+		http.Error(w, "Failed to sign document", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"id": sig.ID})
+}
+
+func (h *Handlers) GetDocumentSignaturesHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	sigs, err := h.services.GetSignaturesByDocumentID(docID)
+	if err != nil {
+		http.Error(w, "Failed to get signatures", http.StatusInternalServerError)
+		return
+	}
+
+	// convert to models
+	out := make([]*models.Signature, 0)
+	for _, s := range sigs {
+		out = append(out, &models.Signature{
+			ID:            s.ID,
+			DocumentID:    s.DocumentID,
+			SignerName:    s.SignerName,
+			SignerEmail:   s.SignerEmail,
+			SignatureData: string(s.SignatureData),
+			Timestamp:     s.Timestamp,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(out)
+}
+
+func (h *Handlers) DeleteSignatureHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if err := h.services.DeleteSignature(id); err != nil {
+		http.Error(w, "Failed to delete signature", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) ShareDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+	log.Printf("ShareDocumentHandler called with docID: %s", docID)
+
+	var req models.ShareDocumentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Failed to decode request body: %v", err)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	log.Printf("Request decoded: shared_with_email=%s, permission=%s", req.SharedWithEmail, req.Permission)
+
+	// find user to share with
+	user, err := h.services.GetUserByEmail(req.SharedWithEmail)
+	if err != nil {
+		log.Printf("User not found for email %s: %v", req.SharedWithEmail, err)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	log.Printf("User found: %s (%s)", user.Name, user.Email)
+
+	share := &repository.DocumentShare{
+		ID:               uuid.New().String(),
+		DocumentID:       docID,
+		SharedByUserID:   "", // will be set from context if needed
+		SharedWithUserID: user.ID,
+		Permission:       req.Permission,
+	}
+
+	// try to get shared-by from context
+	if v := r.Context().Value("user_id"); v != nil {
+		if uid, ok := v.(string); ok {
+			share.SharedByUserID = uid
+			log.Printf("SharedByUserID from context: %s", uid)
+		}
+	}
+
+	log.Printf("Creating document share: id=%s, docID=%s, sharedByUserID=%s, sharedWithUserID=%s, permission=%s",
+		share.ID, share.DocumentID, share.SharedByUserID, share.SharedWithUserID, share.Permission)
+	
+	if err := h.services.CreateDocumentShare(share); err != nil {
+		log.Printf("Failed to create document share: %v", err)
+		http.Error(w, "Failed to share document", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Document share created successfully")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(share)
+}
+
+func (h *Handlers) GetDocumentSharesHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	shares, err := h.services.GetDocumentShares(docID)
+	if err != nil {
+		http.Error(w, "Failed to get shares", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(shares)
+}
+
+func (h *Handlers) DeleteDocumentShareHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if err := h.services.DeleteDocumentShare(id); err != nil {
+		http.Error(w, "Failed to delete share", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) GetDocumentCommentsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	comments, err := h.services.GetDocumentComments(docID)
+	if err != nil {
+		http.Error(w, "Failed to get comments", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(comments)
+}
+
+func (h *Handlers) CreateDocumentCommentHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	var req models.CommentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	userID := ""
+	if v := r.Context().Value("user_id"); v != nil {
+		if uid, ok := v.(string); ok {
+			userID = uid
+		}
+	}
+
+	comment := &repository.DocumentComment{
+		ID:         uuid.New().String(),
+		DocumentID: docID,
+		UserID:     userID,
+		Content:    req.Content,
+	}
+
+	if err := h.services.CreateDocumentComment(comment); err != nil {
+		http.Error(w, "Failed to create comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(comment)
+}
+
+func (h *Handlers) DeleteDocumentCommentHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if err := h.services.DeleteDocumentComment(id); err != nil {
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) GetDocumentVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	docID := vars["id"]
+
+	versions, err := h.services.GetDocumentVersions(docID)
+	if err != nil {
+		http.Error(w, "Failed to get versions", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(versions)
+}
+
 func generateToken(userID string) (string, error) {
 	return middleware.GenerateToken(userID)
 }
@@ -289,6 +536,58 @@ func toTime(v interface{}) time.Time {
 	default:
 		return time.Now()
 	}
+}
+
+func (h *Handlers) GetSharedWithMeHandler(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by JWT middleware)
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("GetSharedWithMeHandler called for userID: %s", userID)
+
+	// Get all document shares where this user is the recipient
+	shares, err := h.services.GetDocumentsSharedWithUser(userID)
+	if err != nil {
+		log.Printf("Failed to get shared documents: %v", err)
+		http.Error(w, "Failed to get shared documents", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch full document details for each share
+	type DocumentWithShare struct {
+		Share    *repository.DocumentShare `json:"share"`
+		Document *repository.Document      `json:"document"`
+		SharedBy *models.User              `json:"shared_by"`
+	}
+
+	var result []DocumentWithShare
+	for _, share := range shares {
+		// Get document details
+		doc, err := h.services.GetDocumentByID(share.DocumentID)
+		if err != nil {
+			log.Printf("Failed to get document %s: %v", share.DocumentID, err)
+			continue
+		}
+
+		// Get shared by user details
+		sharedByUser, err := h.services.GetUserByID(share.SharedByUserID)
+		if err != nil {
+			log.Printf("Failed to get user %s: %v", share.SharedByUserID, err)
+			continue
+		}
+
+		result = append(result, DocumentWithShare{
+			Share:    share,
+			Document: doc,
+			SharedBy: &models.User{ID: sharedByUser.ID, Email: sharedByUser.Email, Name: sharedByUser.Name},
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 func replaceAll(content, old, new string) string {

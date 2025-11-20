@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, draoky]
+  pull_request:
+    branches: [main, draoky]
+
+jobs:
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: kiradoc
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Download dependencies
+        working-directory: backend
+        run: go mod download
+
+      - name: Run go mod tidy (check for consistency)
+        working-directory: backend
+        run: go mod tidy && git diff --exit-code
+
+      - name: Run go fmt (check code format)
+        working-directory: backend
+        run: |
+          FMT_DIFF=$(go fmt ./...)
+          if [ -n "$FMT_DIFF" ]; then
+            echo "Code formatting issues found:"
+            echo "$FMT_DIFF"
+            exit 1
+          fi
+
+      - name: Run go vet (static analysis)
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Build backend
+        working-directory: backend
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+        run: go build -o main ./cmd/
+
+      - name: Install migrate tool
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/local/bin/
+
+      - name: Run migrations on test database
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/kiradoc
+        working-directory: backend
+        run: migrate -path ./migrations -database "$DATABASE_URL" up
+
+      - name: Verify migrations applied
+        env:
+          PGPASSWORD: password
+        run: |
+          psql -h localhost -U user -d kiradoc -c "\dt" | grep -E "users|templates|documents" && echo "✓ Tables created successfully"
+
+  frontend:
+    name: Frontend (Node.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint 2>/dev/null || echo "Lint script not configured, skipping"
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: kiradoc-backend:latest

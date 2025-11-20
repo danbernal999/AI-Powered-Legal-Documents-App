@@ -114,7 +114,7 @@ export default function DashboardPage() {
 
           <div className="mb-12">
             <h2 className="heading-2 mb-6">{t('dashboard.quickStart')}</h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <Link href="/documents/create" className="card hover:shadow-lg transition-shadow group cursor-pointer">
                 <div className="w-14 h-14 bg-teal-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,6 +143,16 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="heading-3 mb-2 group-hover:text-blue-600 transition-colors">{t('dashboard.startTemplate')}</h3>
                 <p className="text-gray-600 text-sm">{t('dashboard.startTemplateDesc')}</p>
+              </Link>
+
+              <Link href="/dashboard/shared-with-me" className="card hover:shadow-lg transition-shadow group cursor-pointer">
+                <div className="w-14 h-14 bg-indigo-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C9.589 12.938 10.54 12.5 11.514 12.5c4.265 0 7.667 3.418 9.186 7.066.231.603.34 1.219.34 1.834 0 1.104-.502 2.153-1.379 2.85a9.987 9.987 0 01-4.307 1.875c-2.423.448-4.817.448-7.24 0a9.987 9.987 0 01-4.307-1.875 2.772 2.772 0 01-1.379-2.85c0-.615.109-1.231.34-1.834.186-.487.42-.945.697-1.373M6.5 13a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm8 0a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" />
+                  </svg>
+                </div>
+                <h3 className="heading-3 mb-2 group-hover:text-indigo-600 transition-colors">Compartidos Conmigo</h3>
+                <p className="text-gray-600 text-sm">Ver documentos compartidos por otros usuarios</p>
               </Link>
             </div>
           </div>
