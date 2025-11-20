@@ -57,6 +57,18 @@ make down
 - No expongas secretos en logs. El backend ya enmascara las credenciales del DSN en los logs.
 - Mantén `.env` fuera del control de versiones (usa `.env.example` en repo).
 
+**Secrets para CI (GitHub Actions)**
+Si usas GitHub Actions para ejecutar las migraciones o pruebas, crea los siguientes
+secrets en el repositorio (Settings → Secrets):
+
+- `PG_USER`: nombre de usuario de Postgres (ej: `user`)
+- `PG_PASSWORD`: contraseña de Postgres (ej: `password`)
+- `PG_DB`: nombre de la base de datos (ej: `kiradoc`)
+
+El workflow de ejemplo usa estos secretos para construir la `DATABASE_URL`
+y añade `?sslmode=disable` ya que el servicio Postgres en Actions no usa SSL
+por defecto.
+
 **Comandos útiles**
 - Ver la URL que usa la app (dentro del contenedor backend):
 

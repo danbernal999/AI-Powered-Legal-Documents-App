@@ -10,14 +10,19 @@ jobs:
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
+    # NOTA: Antes de ejecutar este workflow, configure los siguientes secretos
+    # en el repositorio: Settings -> Secrets
+    # - PG_USER: nombre de usuario de Postgres (ej: user)
+    # - PG_PASSWORD: contraseña de Postgres (ej: password)
+    # - PG_DB: nombre de la base de datos (ej: kiradoc)
     
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: kiradoc
+          POSTGRES_USER: ${{ secrets.PG_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.PG_DB }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -69,16 +74,19 @@ jobs:
           sudo mv migrate /usr/local/bin/
 
       - name: Run migrations on test database
+        # Construye la URL usando los secretos anteriores. Se desactiva SSL
+        # porque el servicio Postgres en GitHub Actions no sirve SSL por defecto.
         env:
-          DATABASE_URL: postgres://user:password@localhost:5432/kiradoc
+          DATABASE_URL: "postgres://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@localhost:5432/${{ secrets.PG_DB }}?sslmode=disable"
         working-directory: backend
         run: migrate -path ./migrations -database "$DATABASE_URL" up
 
       - name: Verify migrations applied
+        # Verifica que las tablas clave existan. Usa PGPASSWORD desde secrets.
         env:
-          PGPASSWORD: password
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
-          psql -h localhost -U user -d kiradoc -c "\dt" | grep -E "users|templates|documents" && echo "✓ Tables created successfully"
+          psql -h localhost -U ${{ secrets.PG_USER }} -d ${{ secrets.PG_DB }} -c "\dt" | grep -E "users|templates|documents" && echo "✓ Tables created successfully"
 
   frontend:
     name: Frontend (Node.js)
