@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type MCPProvider struct {
@@ -11,12 +12,12 @@ type MCPProvider struct {
 }
 
 type DocumentTemplate struct {
-	ID        string                   `json:"id"`
-	Name      string                   `json:"name"`
-	Type      string                   `json:"type"`
-	Prompt    string                   `json:"prompt"`
-	Variables []TemplateVariable       `json:"variables"`
-	Sections  []DocumentSection        `json:"sections"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	Type      string             `json:"type"`
+	Prompt    string             `json:"prompt"`
+	Variables []TemplateVariable `json:"variables"`
+	Sections  []DocumentSection  `json:"sections"`
 }
 
 type TemplateVariable struct {
@@ -38,9 +39,9 @@ type AIClient interface {
 }
 
 type AnalysisResult struct {
-	Risks      []string `json:"risks"`
+	Risks       []string `json:"risks"`
 	Suggestions []string `json:"suggestions"`
-	Score      float64  `json:"score"`
+	Score       float64  `json:"score"`
 }
 
 type GenerateDocumentInput struct {
@@ -49,7 +50,7 @@ type GenerateDocumentInput struct {
 }
 
 type GenerateDocumentOutput struct {
-	Content string `json:"content"`
+	Content string   `json:"content"`
 	Errors  []string `json:"errors,omitempty"`
 }
 
@@ -228,9 +229,9 @@ func (p *MCPProvider) buildPrompt(template *DocumentTemplate, variables map[stri
 	for _, v := range template.Variables {
 		placeholder := "{{" + v.Name + "}}"
 		if val, exists := variables[v.Name]; exists {
-			prompt = fmt.Sprintf("%s -> %v", prompt, val)
+			prompt = strings.ReplaceAll(prompt, placeholder, fmt.Sprintf("%v", val))
 		} else if v.Required {
-			prompt = fmt.Sprintf("%s -> [MISSING REQUIRED: %s]", prompt, v.Name)
+			prompt = strings.ReplaceAll(prompt, placeholder, fmt.Sprintf("[MISSING REQUIRED: %s]", v.Name))
 		}
 	}
 	return prompt
