@@ -19,10 +19,12 @@ jobs:
     services:
       postgres:
         image: postgres:15-alpine
+        # Usamos valores por defecto aquí para asegurar que el contenedor
+        # arranque incluso si los secrets de GitHub Actions no están configurados.
         env:
-          POSTGRES_USER: ${{ secrets.PG_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.PG_DB }}
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: kiradoc
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -74,19 +76,35 @@ jobs:
           sudo mv migrate /usr/local/bin/
 
       - name: Run migrations on test database
-        # Construye la URL usando los secretos anteriores. Se desactiva SSL
-        # porque el servicio Postgres en GitHub Actions no sirve SSL por defecto.
+        # Usa los secrets si están definidos; si no, se usan valores por defecto
+        # en tiempo de ejecución para no depender de secrets obligatorios.
         env:
-          DATABASE_URL: "postgres://${{ secrets.PG_USER }}:${{ secrets.PG_PASSWORD }}@localhost:5432/${{ secrets.PG_DB }}?sslmode=disable"
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_DB: ${{ secrets.PG_DB }}
         working-directory: backend
-        run: migrate -path ./migrations -database "$DATABASE_URL" up
+        run: |
+          # Valores por defecto si las variables de entorno están vacías
+          PG_USER="${PG_USER:-user}"
+          PG_PASSWORD="${PG_PASSWORD:-password}"
+          PG_DB="${PG_DB:-kiradoc}"
+          DATABASE_URL="postgres://${PG_USER}:${PG_PASSWORD}@localhost:5432/${PG_DB}?sslmode=disable"
+          echo "Running migrations against $DATABASE_URL"
+          migrate -path ./migrations -database "$DATABASE_URL" up
 
       - name: Verify migrations applied
-        # Verifica que las tablas clave existan. Usa PGPASSWORD desde secrets.
+        # Verifica que las tablas clave existan. Usa secrets si están definidos,
+        # o valores por defecto (user/password/kiradoc) cuando no lo estén.
         env:
-          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_DB: ${{ secrets.PG_DB }}
         run: |
-          psql -h localhost -U ${{ secrets.PG_USER }} -d ${{ secrets.PG_DB }} -c "\dt" | grep -E "users|templates|documents" && echo "✓ Tables created successfully"
+          PG_USER="${PG_USER:-user}"
+          PG_PASSWORD="${PG_PASSWORD:-password}"
+          PG_DB="${PG_DB:-kiradoc}"
+          export PGPASSWORD="$PG_PASSWORD"
+          psql -h localhost -U "$PG_USER" -d "$PG_DB" -c "\dt" | grep -E "users|templates|documents" && echo "✓ Tables created successfully"
 
   frontend:
     name: Frontend (Node.js)
