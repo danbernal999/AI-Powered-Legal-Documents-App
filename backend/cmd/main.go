@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/danbernal999/kiradoc-backend/pkg/analysis"
 	"github.com/danbernal999/kiradoc-backend/pkg/handlers"
 	"github.com/danbernal999/kiradoc-backend/pkg/middleware"
 	"github.com/danbernal999/kiradoc-backend/pkg/repository"
@@ -95,6 +96,8 @@ func main() {
 	apiRoutes.HandleFunc("/signatures/{id}", h.DeleteSignatureHandler).Methods("DELETE", "OPTIONS")
 	apiRoutes.HandleFunc("/shares/{id}", h.DeleteDocumentShareHandler).Methods("DELETE", "OPTIONS")
 	apiRoutes.HandleFunc("/comments/{id}", h.DeleteDocumentCommentHandler).Methods("DELETE", "OPTIONS")
+
+	apiRoutes.HandleFunc("/analysis/upload", analysis.NewUploadDocumentHandler(repo)).Methods("POST", "OPTIONS")
 
 	port := os.Getenv("PORT")
 	if port == "" {

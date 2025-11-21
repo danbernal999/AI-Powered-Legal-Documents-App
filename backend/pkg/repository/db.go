@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -452,4 +455,68 @@ func (r *Repository) GetDocumentVersions(documentID string) ([]*DocumentVersion,
 		versions = append(versions, &version)
 	}
 	return versions, nil
+}
+
+type Chunk struct {
+	ID         string                 `json:"id"`
+	DocumentID string                 `json:"document_id"`
+	Content    string                 `json:"content"`
+	Metadata   map[string]interface{} `json:"metadata"`
+	CreatedAt  interface{}            `json:"created_at"`
+}
+
+func (r *Repository) SaveChunk(chunk *Chunk, embedding []float32) error {
+	query := `
+	INSERT INTO chunks (id, document_id, content, metadata, embedding)
+	VALUES ($1, $2, $3, $4, $5)
+	`
+	embeddingStr := embeddingToVector(embedding)
+	metadataJSON, _ := json.Marshal(chunk.Metadata)
+	_, err := r.db.Exec(query, chunk.ID, chunk.DocumentID, chunk.Content, string(metadataJSON), embeddingStr)
+	return err
+}
+
+func (r *Repository) GetChunksByDocumentID(documentID string) ([]*Chunk, error) {
+	query := `SELECT id, document_id, content, metadata, created_at FROM chunks WHERE document_id = $1 ORDER BY created_at ASC`
+	rows, err := r.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chunks []*Chunk
+	for rows.Next() {
+		var chunk Chunk
+		var metadataJSON string
+		err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.Content, &metadataJSON, &chunk.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if metadataJSON != "" {
+			err := json.Unmarshal([]byte(metadataJSON), &chunk.Metadata)
+			if err != nil {
+				chunk.Metadata = make(map[string]interface{})
+			}
+		} else {
+			chunk.Metadata = make(map[string]interface{})
+		}
+		chunks = append(chunks, &chunk)
+	}
+	return chunks, nil
+}
+
+func embeddingToVector(embedding []float32) string {
+	if len(embedding) == 0 {
+		return "[]"
+	}
+	var buf bytes.Buffer
+	buf.WriteString("[")
+	for i, v := range embedding {
+		if i > 0 {
+			buf.WriteString(",")
+		}
+		buf.WriteString(fmt.Sprintf("%g", v))
+	}
+	buf.WriteString("]")
+	return buf.String()
 }

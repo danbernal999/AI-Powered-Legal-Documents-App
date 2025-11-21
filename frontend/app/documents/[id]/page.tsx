@@ -4,8 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Sidebar from '@/components/Sidebar'
+import SignatureCanvas from '@/components/SignatureCanvas'
+import SignaturesList from '@/components/SignaturesList'
+import ShareDocumentModal from '@/components/ShareDocumentModal'
+import CollaboratorsPanel from '@/components/CollaboratorsPanel'
+import CommentsPanel from '@/components/CommentsPanel'
+import VersionHistory from '@/components/VersionHistory'
 import { useAuthStore, useDocumentStore } from '@/lib/store'
-import { documentAPI } from '@/lib/api'
+import { documentAPI, signatureAPI } from '@/lib/api'
 import { IconEdit, IconSave, IconDownload, IconLoading, IconDocument, IconCheck, IconVersion, IconDate, IconDelete } from '@/components/Icons'
 
 export default function DocumentPage({ params }: { params: { id: string } }) {
@@ -18,6 +24,14 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [showSignatureModal, setShowSignatureModal] = useState<'closed' | 'input' | 'canvas'>('closed')
+  const [signerName, setSignerName] = useState('')
+  const [signerEmail, setSignerEmail] = useState('')
+  const [signatures, setSignatures] = useState<any[]>([])
+  const [signingLoading, setSigningLoading] = useState(false)
+  const [signaturesLoading, setSignaturesLoading] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'info' | 'collaborators' | 'comments' | 'history'>('info')
 
   useEffect(() => {
     if (!token) {
@@ -46,6 +60,25 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
 
     fetchDocument()
   }, [params.id, token, router, setCurrentDocument])
+
+  const fetchSignatures = useCallback(async () => {
+    if (!params?.id) return
+    setSignaturesLoading(true)
+    try {
+      const response = await signatureAPI.getSignatures(params.id)
+      setSignatures(response.data || [])
+    } catch (error) {
+      console.error('Error cargando firmas:', error)
+    } finally {
+      setSignaturesLoading(false)
+    }
+  }, [params.id])
+
+  useEffect(() => {
+    if (!loading && params?.id) {
+      fetchSignatures()
+    }
+  }, [loading, params.id, fetchSignatures])
 
   const handleSave = useCallback(async () => {
     if (!currentDocument) return
@@ -88,6 +121,39 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     }
   }, [currentDocument, router])
 
+  const handleSign = useCallback(async (signatureData: string) => {
+    if (!currentDocument || !signerName.trim() || !signerEmail.trim()) {
+      alert('Por favor completa tu nombre y email')
+      return
+    }
+
+    setSigningLoading(true)
+    try {
+      await signatureAPI.sign(currentDocument.id, signerName, signerEmail, signatureData)
+      setShowSignatureModal('closed')
+      setSignerName('')
+      setSignerEmail('')
+      await fetchSignatures()
+    } catch (error) {
+      console.error('Error firmando documento:', error)
+      alert('No se pudo firmar el documento')
+    } finally {
+      setSigningLoading(false)
+    }
+  }, [currentDocument, signerName, signerEmail, fetchSignatures])
+
+  const handleDeleteSignature = useCallback(async (signatureId: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta firma?')) return
+
+    try {
+      await signatureAPI.deleteSignature(signatureId)
+      await fetchSignatures()
+    } catch (error) {
+      console.error('Error eliminando firma:', error)
+      alert('No se pudo eliminar la firma')
+    }
+  }, [fetchSignatures])
+
   const handleExportPDF = useCallback(async () => {
     if (!currentDocument || !content) {
       alert('El documento no está completamente cargado')
@@ -108,6 +174,30 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       const docStatus = currentDocument.status || 'Sin estado'
       const docVersion = currentDocument.version || '1'
       const docContent = content || 'Sin contenido'
+
+      const signaturesHTML = signatures && signatures.length > 0 ? `
+        <div class="signatures-section">
+          <h2>Firmas</h2>
+          <table class="signatures-table">
+            <thead>
+              <tr>
+                <th>Firmante</th>
+                <th>Email</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${signatures.map((sig: any) => `
+                <tr>
+                  <td>${sig.signer_name}</td>
+                  <td>${sig.signer_email}</td>
+                  <td>${new Date(sig.signed_at).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -130,6 +220,14 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
                 border-bottom: 2px solid #007bff;
                 padding-bottom: 10px;
               }
+              h2 {
+                font-size: 18px;
+                margin-top: 30px;
+                margin-bottom: 15px;
+                color: #1a1a1a;
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 8px;
+              }
               .metadata { 
                 font-size: 13px; 
                 color: #666; 
@@ -143,6 +241,31 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
                 word-wrap: break-word;
                 line-height: 1.8;
                 font-size: 14px;
+                margin-bottom: 30px;
+              }
+              .signatures-section {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 2px solid #ddd;
+              }
+              .signatures-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+              }
+              .signatures-table th {
+                background-color: #f0f0f0;
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: left;
+                font-weight: bold;
+              }
+              .signatures-table td {
+                border: 1px solid #ddd;
+                padding: 10px;
+              }
+              .signatures-table tr:nth-child(even) {
+                background-color: #f9f9f9;
               }
             </style>
           </head>
@@ -154,6 +277,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
               <strong>Versión:</strong> v${docVersion}
             </div>
             <div class="content">${docContent}</div>
+            ${signaturesHTML}
           </body>
         </html>
       `
@@ -170,7 +294,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     } finally {
       setExporting(false)
     }
-  }, [currentDocument, content])
+  }, [currentDocument, content, signatures])
 
   if (loading) {
     return (
@@ -210,6 +334,18 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
           <div className="flex gap-2 flex-wrap justify-end">
             {!editing && (
               <>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="btn btn-primary gap-2"
+                >
+                  <i className="ri-share-2-line" /> Compartir
+                </button>
+                <button
+                  onClick={() => setShowSignatureModal('input')}
+                  className="btn btn-primary gap-2"
+                >
+                  <i className="ri-edit-2-line" /> Firmar
+                </button>
                 <button
                   onClick={() => setEditing(true)}
                   className="btn btn-primary gap-2"
@@ -287,9 +423,167 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
               </button>
             </div>
           )}
-        </div>
+            {/* Signatures Section */}
+            <div className="mt-8">
+              <h2 className="heading-2 mb-4 flex items-center gap-2">
+                <i className="ri-checkbox-circle-line text-indigo-600" />
+                Firmas del Documento
+              </h2>
+              <SignaturesList
+                signatures={signatures}
+                onDelete={handleDeleteSignature}
+                isLoading={signaturesLoading}
+              />
+            </div>
+
+            {/* Collaboration Section */}
+            <div className="mt-8">
+              <div className="flex gap-2 border-b border-gray-200 mb-6">
+                <button
+                  onClick={() => setActiveTab('collaborators')}
+                  className={`px-4 py-2 font-semibold transition border-b-2 ${
+                    activeTab === 'collaborators'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <i className="ri-group-line mr-2" />
+                  Colaboradores
+                </button>
+                <button
+                  onClick={() => setActiveTab('comments')}
+                  className={`px-4 py-2 font-semibold transition border-b-2 ${
+                    activeTab === 'comments'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <i className="ri-chat-3-line mr-2" />
+                  Comentarios
+                </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`px-4 py-2 font-semibold transition border-b-2 ${
+                    activeTab === 'history'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <i className="ri-history-line mr-2" />
+                  Historial
+                </button>
+              </div>
+
+              {activeTab === 'collaborators' && (
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-4">Colaboradores</h3>
+                  <CollaboratorsPanel documentId={params.id} />
+                </div>
+              )}
+
+              {activeTab === 'comments' && (
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-4">Comentarios</h3>
+                  <CommentsPanel documentId={params.id} />
+                </div>
+              )}
+
+              {activeTab === 'history' && (
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-4">Historial de Cambios</h3>
+                  <VersionHistory documentId={params.id} />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </main>
+
+      {/* Signature Input Modal */}
+      {showSignatureModal === 'input' && !signingLoading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="heading-2 mb-2">Sign Document</h2>
+              <p className="text-sm text-gray-600">
+                Enter your information to proceed with signing
+              </p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  placeholder="Your full name"
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={signerEmail}
+                  onChange={(e) => setSignerEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="input-field"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={() => setShowSignatureModal('closed')}
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (signerName.trim() && signerEmail.trim()) {
+                      setShowSignatureModal('canvas')
+                    }
+                  }}
+                  disabled={!signerName.trim() || !signerEmail.trim()}
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Canvas Modal */}
+      {showSignatureModal === 'canvas' && (
+        <SignatureCanvas
+          signerName={signerName}
+          signerEmail={signerEmail}
+          onSave={handleSign}
+          onCancel={() => {
+            setShowSignatureModal('closed')
+            setSignerName('')
+            setSignerEmail('')
+          }}
+        />
+      )}
+
+      {/* Share Document Modal */}
+      <ShareDocumentModal
+        documentId={params.id}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShareSuccess={() => {
+          setActiveTab('collaborators')
+        }}
+      />
     </div>
   )
 }

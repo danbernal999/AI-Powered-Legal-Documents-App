@@ -427,9 +427,10 @@ export default function CreateTemplatePage() {
             </div>
 
             {/* Right Column: Preview & Stats */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-1 sticky top-24 h-fit">
+              <div className="space-y-6">
               {/* Template Stats */}
-              <div className="card bg-gradient-to-br from-indigo-50 to-blue-50 sticky top-24">
+              <div className="card bg-gradient-to-br from-indigo-50 to-blue-50">
                 <h3 className="heading-3 mb-4 flex items-center gap-2">
                   <i className="ri-bar-chart-box-line text-indigo-600" />
                   Template Stats
@@ -466,7 +467,7 @@ export default function CreateTemplatePage() {
               </div>
 
               {/* Live Preview */}
-              <div className="card bg-gradient-to-br from-blue-50 to-purple-50 sticky top-80">
+              <div className="card bg-gradient-to-br from-blue-50 to-purple-50">
                 <h3 className="heading-3 mb-4 flex items-center gap-2">
                   <i className="ri-eye-line text-purple-600" />
                   {t('templates.preview')}
@@ -577,6 +578,7 @@ export default function CreateTemplatePage() {
                     {t('common.cancel')}
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           </form>
