@@ -1,7 +1,6 @@
 package analysis
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"

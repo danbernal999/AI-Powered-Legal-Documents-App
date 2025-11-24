@@ -19,6 +19,7 @@ import (
 )
 
 func main() {
+	godotenv.Load(".env")
 	godotenv.Load("../.env")
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -33,7 +34,8 @@ func main() {
 	// we run migrations before opening DB connection
 	if dbURL != "" {
 		// migrate uses the database URL directly
-		m, err := migrate.New("file:///migrations", dbURL)
+		migrationPath := determineMigrationPath()
+		m, err := migrate.New(migrationPath, dbURL)
 		if err != nil {
 			log.Printf("migrate.New error: %v", err)
 		} else {
@@ -110,7 +112,20 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, corsRouter))
 }
 
-// maskDSN returns a redacted DSN showing only host and database (safe for logs)
+func determineMigrationPath() string {
+	if _, err := os.Stat("/migrations"); err == nil {
+		return "file:///migrations"
+	}
+	if _, err := os.Stat("migrations"); err == nil {
+		return "file://migrations"
+	}
+	if _, err := os.Stat("./migrations"); err == nil {
+		return "file://./migrations"
+	}
+	log.Printf("Warning: migrations directory not found in expected locations")
+	return "file://migrations"
+}
+
 func maskDSN(dsn string) string {
 	if dsn == "" {
 		return "(empty)"

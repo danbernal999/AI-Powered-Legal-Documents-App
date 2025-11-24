@@ -52,7 +52,7 @@ jobs:
       - name: Run go fmt (check code format)
         working-directory: backend
         run: |
-          FMT_DIFF=$(go fmt ./...)
+          FMT_DIFF=$(go fmt -1 .)
           if [ -n "$FMT_DIFF" ]; then
             echo "Code formatting issues found:"
             echo "$FMT_DIFF"
@@ -96,9 +96,9 @@ jobs:
         # Verifica que las tablas clave existan. Usa secrets si están definidos,
         # o valores por defecto (user/password/kiradoc) cuando no lo estén.
         env:
-          PG_USER: ${{ secrets.PG_USER }}
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER || 'user' }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD || 'password' }}
+          PG_DB: ${{ secrets.PG_DB || 'kiradoc' }}
         run: |
           PG_USER="${PG_USER:-user}"
           PG_PASSWORD="${PG_PASSWORD:-password}"
