@@ -63,6 +63,11 @@ type AuthResponse struct {
 	User  User   `json:"user"`
 }
 
+type GoogleLoginRequest struct {
+	IDToken string `json:"id_token"`
+}
+
+
 type Signature struct {
 	ID            string    `json:"id"`
 	DocumentID    string    `json:"document_id"`

@@ -30,6 +30,8 @@
 .env
 .env.local
 .env.*.local
+firebase-credentials.json
+*firebase-adminsdk*.json
 
 # Build
 dist/

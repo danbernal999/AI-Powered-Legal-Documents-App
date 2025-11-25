@@ -26,6 +26,9 @@ services:
       PORT: 8080
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
+      GOOGLE_APPLICATION_CREDENTIALS: /root/firebase-credentials.json
+    volumes:
+      - ./firebase-credentials.json:/root/firebase-credentials.json:ro
     depends_on:
       postgres:
         condition: service_healthy

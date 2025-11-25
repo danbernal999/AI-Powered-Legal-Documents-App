@@ -79,9 +79,9 @@ jobs:
         # Usa los secrets si están definidos; si no, se usan valores por defecto
         # en tiempo de ejecución para no depender de secrets obligatorios.
         env:
-          PG_USER: ${{ secrets.PG_USER }}
-          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER || 'user' }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD || 'password' }}
+          PG_DB: ${{ secrets.PG_DB || 'kiradoc' }}
         working-directory: backend
         run: |
           # Valores por defecto si las variables de entorno están vacías

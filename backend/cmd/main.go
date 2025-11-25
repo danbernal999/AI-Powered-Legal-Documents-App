@@ -35,6 +35,7 @@ func main() {
 	if dbURL != "" {
 		// migrate uses the database URL directly
 		migrationPath := determineMigrationPath()
+		log.Printf("Using migration path: %s", migrationPath)
 		m, err := migrate.New(migrationPath, dbURL)
 		if err != nil {
 			log.Printf("migrate.New error: %v", err)
@@ -60,6 +61,14 @@ func main() {
 	svc := services.NewServices(repo)
 	h := handlers.NewHandlers(svc)
 
+	// Initialize Firebase for Google Authentication
+	// This will use Application Default Credentials or GOOGLE_APPLICATION_CREDENTIALS env var
+	// For production, set GOOGLE_APPLICATION_CREDENTIALS to point to your service account key file
+	if err := handlers.InitializeFirebase(); err != nil {
+		log.Printf("Warning: Failed to initialize Firebase: %v", err)
+		log.Println("Google authentication will not be available")
+	}
+
 	router := mux.NewRouter()
 
 	router.HandleFunc("/health", handlers.HealthHandler).Methods("GET", "OPTIONS")
@@ -67,6 +76,7 @@ func main() {
 	authRoutes := router.PathPrefix("/api/v1/auth").Subrouter()
 	authRoutes.HandleFunc("/register", h.RegisterHandler).Methods("POST", "OPTIONS")
 	authRoutes.HandleFunc("/login", h.LoginHandler).Methods("POST", "OPTIONS")
+	authRoutes.HandleFunc("/google", h.GoogleLoginHandler).Methods("POST", "OPTIONS")
 
 	apiRoutes := router.PathPrefix("/api/v1").Subrouter()
 	apiRoutes.Use(middleware.JWTMiddleware)

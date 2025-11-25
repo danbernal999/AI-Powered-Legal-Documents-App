@@ -24,6 +24,9 @@ export const authAPI = {
 
   login: (email: string, password: string) =>
     apiClient.post('/auth/login', { email, password }),
+
+  googleLogin: (idToken: string) =>
+    apiClient.post('/auth/google', { id_token: idToken }),
 }
 
 export const templateAPI = {
