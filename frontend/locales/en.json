@@ -71,7 +71,7 @@
     "templateType": "Template Type",
     "content": "Content",
     "contentPlaceholder": "Write your template content here. Use {{variableName}} to add dynamic variables",
-    "contentHint": "💡 Use double curly braces {{}} to add dynamic variables to your template",
+    "contentHint": "Use double curly braces {{}} to add dynamic variables to your template",
     "variables": "Define Variables",
     "variableName": "Variable Name",
     "variablePlaceholder": "e.g., company_name",
