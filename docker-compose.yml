@@ -10,10 +10,24 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d kiradoc"]
+      test: [ "CMD-SHELL", "pg_isready -U user -d kiradoc" ]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - kiradoc-network
+
+  migrate:
+    image: migrate/migrate:v4.15.2
+    volumes:
+      - ./backend/migrations:/migrations
+    command: [ "-path", "/migrations", "-database", "postgres://user:password@postgres:5432/kiradoc?sslmode=disable", "up" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kiradoc-network
+    restart: on-failure
 
   backend:
     build:
@@ -32,6 +46,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - kiradoc-network
+
+networks:
+  kiradoc-network:
+    driver: bridge
 
 volumes:
   postgres_data:

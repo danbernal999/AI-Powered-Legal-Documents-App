@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/
 
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates wget
 WORKDIR /root/
 
 COPY --from=builder /app/main .

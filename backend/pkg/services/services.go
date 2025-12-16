@@ -142,3 +142,7 @@ func (s *Services) CreateDocumentVersion(version *repository.DocumentVersion) er
 func (s *Services) GetDocumentVersions(documentID string) ([]*repository.DocumentVersion, error) {
 	return s.repo.GetDocumentVersions(documentID)
 }
+
+func (s *Services) GetRepository() *repository.Repository {
+	return s.repo
+}
