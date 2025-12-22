@@ -27,7 +27,7 @@ func main() {
 	masked := maskDSN(dbURL)
 	log.Printf("DB connection: %q", masked)
 	if dbURL == "" {
-		dbURL = "postgres://user:password@postgres:5432/kiradoc?sslmode=disable"
+		log.Fatalf("DATABASE_URL environment variable is required. Please configure it in your environment or Railway settings.")
 	}
 
 	// Run migrations using golang-migrate (migrations copied into /migrations in the image)
