@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signInWithPopup, auth, googleProvider } from '@/lib/firebase'
+import { signInWithPopup, signInWithRedirect, auth, googleProvider } from '@/lib/firebase'
 import { useAuthStore } from '@/lib/store'
 import { authAPI } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -15,22 +15,10 @@ export const useGoogleAuth = () => {
         setError(null)
 
         try {
-            // Sign in with Google popup
-            const result = await signInWithPopup(auth, googleProvider)
-            const user = result.user
-
-            // Get the ID token from Firebase
-            const idToken = await user.getIdToken()
-
-            // Send the ID token to your backend for verification
-            const response = await authAPI.googleLogin(idToken)
-            const { token, user: userData } = response.data
-
-            // Store the token and user data
-            login(token, userData)
-
-            // Redirect to dashboard
-            router.push('/dashboard')
+            // Use redirect instead of popup to avoid COOP issues
+            await signInWithRedirect(auth, googleProvider)
+            // Note: After redirect, the user will be redirected back by Firebase
+            // and we'll handle the redirect result on the login page
         } catch (err: any) {
             console.error('Google sign-in error:', err)
 
@@ -44,7 +32,6 @@ export const useGoogleAuth = () => {
             } else {
                 setError('Failed to sign in with Google. Please try again.')
             }
-        } finally {
             setIsLoading(false)
         }
     }

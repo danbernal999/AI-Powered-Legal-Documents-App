@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, Auth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, Auth } from 'firebase/auth'
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -26,5 +26,5 @@ googleProvider.setCustomParameters({
     prompt: 'select_account',
 })
 
-export { signInWithPopup }
+export { signInWithPopup, signInWithRedirect }
 export default app
