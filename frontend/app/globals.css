@@ -34,6 +34,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -44,15 +45,19 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
   }
+
   50% {
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
   }
@@ -81,7 +86,7 @@ main {
 
 /* Background pattern */
 .bg-grid-pattern {
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -184,7 +189,8 @@ main {
 }
 
 .input-field::placeholder {
-  @apply text-gray-400;
+  color: rgb(156, 163, 175);
+  /* text-gray-400 */
 }
 
 /* Typography */
@@ -208,4 +214,3 @@ main {
     scroll-behavior: smooth;
   }
 }
-

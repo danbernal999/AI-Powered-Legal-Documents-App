@@ -1,0 +1,16 @@
+[build]
+cmds = [
+  "cd backend && go build -o app cmd/main.go",
+  "cd frontend && npm install && npm run build"
+]
+
+[start]
+cmd = "cd backend && PORT=$PORT ./app"
+
+[[providers]]
+name = "go"
+match = { files = ["backend/go.mod"] }
+
+[[providers]]
+name = "node"
+match = { files = ["frontend/package.json"] }
