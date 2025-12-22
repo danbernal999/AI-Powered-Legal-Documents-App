@@ -84,10 +84,14 @@ func main() {
 	apiRoutes.HandleFunc("/templates", h.GetTemplatesHandler).Methods("GET", "OPTIONS")
 	apiRoutes.HandleFunc("/templates", h.CreateTemplateHandler).Methods("POST", "OPTIONS")
 	apiRoutes.HandleFunc("/templates/{id}", h.GetTemplateHandler).Methods("GET", "OPTIONS")
+	apiRoutes.HandleFunc("/templates/{id}/export", h.ExportTemplateHandler).Methods("POST", "OPTIONS")
 
 	apiRoutes.HandleFunc("/generate", h.GenerateDocumentHandler).Methods("POST", "OPTIONS")
 
+	apiRoutes.HandleFunc("/export/batch", h.BatchExportHandler).Methods("POST", "OPTIONS")
+
 	// Document routes - more specific paths first
+	apiRoutes.HandleFunc("/documents/{id}/export", h.ExportDocumentHandler).Methods("POST", "OPTIONS")
 	apiRoutes.HandleFunc("/documents/{id}/sign", h.SignDocumentHandler).Methods("POST", "OPTIONS")
 	apiRoutes.HandleFunc("/documents/{id}/signatures", h.GetDocumentSignaturesHandler).Methods("GET", "OPTIONS")
 	apiRoutes.HandleFunc("/documents/{id}/share", h.ShareDocumentHandler).Methods("POST", "OPTIONS")

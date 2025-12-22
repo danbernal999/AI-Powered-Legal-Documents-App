@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 {
   "/login/page": "app/login/page.js",
   "/page": "app/page.js"
 }
+=======
+{}
+>>>>>>> cc09ca1763e7afa4854d61171f265f6a248fef2f

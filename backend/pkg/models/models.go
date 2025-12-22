@@ -141,3 +141,19 @@ type CreateShareLinkRequest struct {
 type CommentRequest struct {
 	Content string `json:"content"`
 }
+
+type ExportRequest struct {
+	Format           string `json:"format"`
+	IncludeWatermark bool   `json:"include_watermark"`
+	IncludeTOC       bool   `json:"include_toc"`
+	CompanyLogo      string `json:"company_logo"`
+	CompanyName      string `json:"company_name"`
+	CompanyColors    string `json:"company_colors"`
+	Draft            bool   `json:"draft"`
+}
+
+type BatchExportRequest struct {
+	DocumentIDs []string      `json:"document_ids"`
+	Format      string        `json:"format"`
+	Options     ExportRequest `json:"options"`
+}
