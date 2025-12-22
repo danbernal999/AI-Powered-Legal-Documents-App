@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -18,39 +19,57 @@ var firebaseAuth *auth.Client
 
 // InitializeFirebase initializes Firebase Admin SDK
 // Tries multiple approaches:
-// 1. Uses service account file from GOOGLE_APPLICATION_CREDENTIALS env var
-// 2. Falls back to Application Default Credentials
+// 1. Uses FIREBASE_CREDENTIALS_JSON env var (JSON content)
+// 2. Uses service account file from GOOGLE_APPLICATION_CREDENTIALS env var
+// 3. Falls back to Application Default Credentials
 func InitializeFirebase() error {
 	ctx := context.Background()
 
-	credentialsPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	
 	var app *firebase.App
 	var err error
-	
+
+	// First try: Check for FIREBASE_CREDENTIALS_JSON (Railway environment)
+	credJSON := os.Getenv("FIREBASE_CREDENTIALS_JSON")
+	if credJSON != "" {
+		tmpDir := os.TempDir()
+		credPath := filepath.Join(tmpDir, "firebase-credentials.json")
+
+		if err := os.WriteFile(credPath, []byte(credJSON), 0600); err != nil {
+			log.Printf("Error writing Firebase credentials file: %v", err)
+		} else {
+			opt := option.WithCredentialsFile(credPath)
+			app, err = firebase.NewApp(ctx, nil, opt)
+			if err == nil {
+				log.Println("Firebase initialized successfully with FIREBASE_CREDENTIALS_JSON")
+				authClient, _ := app.Auth(ctx)
+				firebaseAuth = authClient
+				log.Println("Firebase Auth client initialized successfully")
+				return nil
+			}
+			log.Printf("Error initializing Firebase with FIREBASE_CREDENTIALS_JSON: %v", err)
+		}
+	}
+
+	// Second try: Use GOOGLE_APPLICATION_CREDENTIALS file path
+	credentialsPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	if credentialsPath != "" {
-		// Try with the service account file from env var
 		opt := option.WithCredentialsFile(credentialsPath)
 		app, err = firebase.NewApp(ctx, nil, opt)
-		if err != nil {
-			log.Printf("Error initializing Firebase with credentials file (%s): %v", credentialsPath, err)
-			// Try without credentials file as fallback
-			app, err = firebase.NewApp(ctx, nil)
-			if err != nil {
-				log.Printf("Error initializing Firebase app (fallback): %v", err)
-				return err
-			}
-			log.Println("Firebase initialized with default credentials (fallback)")
-		} else {
+		if err == nil {
 			log.Println("Firebase initialized successfully with service account file")
+			authClient, _ := app.Auth(ctx)
+			firebaseAuth = authClient
+			log.Println("Firebase Auth client initialized successfully")
+			return nil
 		}
-	} else {
-		// Initialize Firebase App with default credentials
-		app, err = firebase.NewApp(ctx, nil)
-		if err != nil {
-			log.Printf("Error initializing Firebase app: %v", err)
-			return err
-		}
+		log.Printf("Error initializing Firebase with credentials file (%s): %v", credentialsPath, err)
+	}
+
+	// Third try: Use default credentials
+	app, err = firebase.NewApp(ctx, nil)
+	if err != nil {
+		log.Printf("Error initializing Firebase app (all methods failed): %v", err)
+		return err
 	}
 
 	// Get Auth client
