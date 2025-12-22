@@ -1,9 +1,3 @@
-[providers.go]
-path = "backend"
-
-[providers.node]
-path = "frontend"
-
 [build]
 cmds = [
   "cd backend && go build -o app cmd/main.go",
