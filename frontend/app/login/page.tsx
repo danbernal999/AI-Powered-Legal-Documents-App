@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
 import { authAPI } from '@/lib/api'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
+import { getRedirectResult, auth } from '@/lib/firebase'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,6 +16,34 @@ export default function LoginPage() {
 
   // Google authentication
   const { signInWithGoogle, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth()
+
+  // Handle Google redirect result
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result) {
+          const user = result.user
+          const idToken = await user.getIdToken()
+          
+          // Send the ID token to backend for verification
+          const response = await authAPI.googleLogin(idToken)
+          const { token, user: userData } = response.data
+          
+          // Store the token and user data
+          login(token, userData)
+          
+          // Redirect to dashboard
+          router.push('/dashboard')
+        }
+      } catch (err: any) {
+        console.error('Redirect result error:', err)
+        setError(err.response?.data?.message || 'Login failed')
+      }
+    }
+    
+    handleRedirectResult()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
